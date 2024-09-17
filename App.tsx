@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import React, {useEffect, useState} from 'react';
 import {
+  addEventListener,
   connect,
   defaultConfig,
   fetchLightningLimits,
@@ -17,6 +18,9 @@ import {
   prepareReceivePayment,
   prepareSendPayment,
   receivePayment,
+  removeEventListener,
+  SdkEvent,
+  sendPayment,
 } from '@breeztech/react-native-breez-sdk-liquid';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -26,15 +30,17 @@ const mnemonic =
 const App = () => {
   const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState('');
-  const [fee, setFee] = useState(0);
+  const [receiveFee, setReceiveFee] = useState(0);
   const [receiveInvoice, setReceiveInvoice] = useState('');
   const [sendInvoice, setSendInvoice] = useState('');
+  const [sendFee, setSendFee] = useState(0);
 
   const init = async () => {
     const config = await defaultConfig(LiquidNetwork.MAINNET);
 
     try {
       await connect({mnemonic, config});
+      await addEventListener(onEvent);
     } catch (error) {
       console.log('init', error);
     }
@@ -66,7 +72,7 @@ const App = () => {
         paymentMethod: PaymentMethod.LIGHTNING,
       });
 
-      setFee(prepareResponse.feesSat);
+      setReceiveFee(prepareResponse.feesSat);
 
       const optionalDescription = 'LiquidSDK Test';
       const res = await receivePayment({
@@ -86,6 +92,7 @@ const App = () => {
         destination: sendInvoice,
       });
       console.log(prepareResponse);
+      setSendFee(prepareResponse.feesSat);
     } catch (error) {
       console.log('error decoding invoice', error);
     }
@@ -93,7 +100,14 @@ const App = () => {
 
   const payInvoice = async () => {
     try {
-      console.log('invoice paid!');
+      const prepareResponse = await prepareSendPayment({
+        destination: sendInvoice,
+      });
+      const sendResponse = await sendPayment({
+        prepareResponse,
+      });
+      const payment = sendResponse.payment;
+      console.log(payment);
     } catch (error) {
       console.log('error sending payment', error);
     }
@@ -101,9 +115,13 @@ const App = () => {
 
   const clearInvoice = () => setSendInvoice('');
 
-  // useEffect(() => {
-  //   init();
-  // }, []);
+  const onEvent = (e: SdkEvent) => {
+    console.log(`Received event: ${e.type}`);
+  };
+
+  useEffect(() => {
+    init();
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -123,7 +141,7 @@ const App = () => {
           keyboardType="numeric"
         />
         <Button title="Get Invoice" onPress={getInvoice} disabled={!amount} />
-        <Text style={styles.text}>Fees: {fee} sats</Text>
+        <Text style={styles.text}>Fees: {receiveFee} sats</Text>
         <Text style={styles.text}>Invoice</Text>
         {receiveInvoice && (
           <QRCode value={receiveInvoice} size={300} backgroundColor="white" />
@@ -136,14 +154,13 @@ const App = () => {
           onChangeText={setSendInvoice}
           value={sendInvoice}
           placeholder=""
-          keyboardType="numeric"
           numberOfLines={10}
           multiline
         />
         <Button title="Clear Invoice" onPress={clearInvoice} />
         <Button title="Decode Invoice" onPress={decodeInvoice} />
+        <Text style={styles.text}>Fees: {sendFee} sats</Text>
         <Button title="Pay Invoice" onPress={payInvoice} />
-        <Text style={styles.text}>Fees: {fee} sats</Text>
       </View>
     </ScrollView>
   );
