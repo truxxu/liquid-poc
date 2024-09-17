@@ -12,7 +12,9 @@
   "dependencies": {
     "@breeztech/react-native-breez-sdk-liquid": "^0.3.1-dev4",
     "react": "18.3.1",
-    "react-native": "0.75.3"
+    "react-native": "0.75.3",
+    "react-native-qrcode-svg": "^6.3.2",
+    "react-native-svg": "^15.7.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
